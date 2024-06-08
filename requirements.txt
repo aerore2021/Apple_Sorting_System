@@ -1,0 +1,8 @@
+torch==2.2.0
+opencv-python
+torchvision==0.17
+tqdm
+os
+PIL
+numpy
+warnings
