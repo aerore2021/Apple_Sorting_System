@@ -56,7 +56,7 @@ class My_AR:
         outputs = nn.Softmax(dim=1)(outputs)
         ripeness = torch.mul(outputs, ripeness_weight)
         ripeness = torch.sum(ripeness, dim=1)
-        self.ripeness = ripeness
+        self.ripeness = ripeness.data.numpy()[0]
     
     
 class Train_ResNet:

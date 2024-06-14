@@ -6,6 +6,8 @@ from train_model import My_AR, model_image_process
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
+import serial
+import time
 
 class Video():
     def __init__(self, capture):
@@ -64,11 +66,12 @@ class MyGui(QWidget):
         self.setWindowTitle('APPLE')
         self.setGeometry(100, 100, 800, 600)
         self.layout_init()
-        self.AR = My_AR
+        self.AR = My_AR()
         self._timer = QTimer(self)
         self._timer.timeout.connect(self.display)
         self._timer.start(27)
-        
+        self.last_flag_apple = False
+        self.serial = serial.Serial('COM8', 9600)
         
     def layout_init(self):
        self.__layout_main = QVBoxLayout()
@@ -78,6 +81,7 @@ class MyGui(QWidget):
        self.__layout_main.addWidget(self.videoFrame)
        self.__layout_main.addLayout(self.__layout_fun_btn)
        self.__layout_main.addLayout(self.__layout_results)
+       
        self.setLayout(self.__layout_main)
         
     
@@ -115,14 +119,20 @@ class MyGui(QWidget):
         # layout results
         self.diameter_result = QLabel('Diameter: '+str(0.0))
         self.ripeness_result = QLabel('Ripeness: '+str(0.0)+'%')
+        self.eaten_result = QLabel('Eaten: '+str(0))
+        self.good_or_bad = QLabel('Good or Bad: '+'Good')
         self.__layout_results.addWidget(self.diameter_result)
         self.__layout_results.addWidget(self.ripeness_result)
+        self.__layout_results.addWidget(self.eaten_result)
+        self.__layout_results.addWidget(self.good_or_bad)
+
     
     def display(self):
         try:
             self.ret, self.frame = self.video.capture.read()
             self.video.analyzer = Diameter_Analyzer(self.frame)
-            if_apple, coordinates, apple_coordinates = self.video.analyzer.find_contours()    
+            if_apple, coordinates, apple_coordinates = self.video.analyzer.find_contours()
+            self.last_flag_apple = if_apple    
             self.results_update(if_apple, apple_coordinates)
             self.video.updateFrameState(self.Framestate)
             self.video.analyzer.recs(coordinates, states=self.Framestate)
@@ -140,6 +150,19 @@ class MyGui(QWidget):
             self.video.analyzer.diameter=diameter
             self.diameter_result.setText('Diameter: '+str(self.video.analyzer.diameter))
             self.ripeness_result.setText('Ripeness: '+str(self.AR.ripeness * 100)+'%')
+            self.eaten_result.setText('Eaten: '+str(self.video.analyzer.bug-1))
+            if self.last_flag_apple != False and 360 >= diameter >= 250:
+                if self.video.analyzer.bug > 1:
+                    print(1, "Bad apple", self.video.analyzer.bug, diameter)
+                    self.serial.write("1".encode())
+                    self.video.analyzer.if_bug = True
+                    self.good_or_bad.setText('Good or Bad: '+'Bad')
+                else:
+                    self.good_or_bad.setText('Good or Bad: ')
+        else:
+            if self.last_flag_apple != False:
+                self.video.analyzer.if_bug = False
+                self.good_or_bad.setText('Good or Bad: '+'Good')
     
     def on_button_clicked(self, btn):
         if btn.text() == 'Original':
